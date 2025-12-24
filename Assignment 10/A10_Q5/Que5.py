@@ -4,7 +4,7 @@ import paho.mqtt.publish as publish
 
 app = Flask(__name__)
 
-# MySQL configuration
+# MySQL configuration (USE YOUR DB)
 db_config = {
     "host": "localhost",
     "user": "root",
@@ -16,44 +16,38 @@ db_config = {
 MQTT_BROKER = "test.mosquitto.org"
 MQTT_TOPIC = "alert/moisture"
 
-# Threshold
+# Threshold value
 THRESHOLD = 30
 
 
-# Insert data into MySQL
-def insert_data(sensor_id, moisture_level,date,time):
+# Insert data into YOUR table
+def insert_data(sensor_id, moisture_level, date, time):
     conn = mysql.connector.connect(**db_config)
     cursor = conn.cursor()
 
     query = """
-    INSERT INTO moisture_data (sensor_id, moisture_level, date,time)
-    VALUES (%s, %s, %s,%s)
+    INSERT INTO soil_moisture (sensor_id, moisture_level, date, time)
+    VALUES (%s, %s, %s, %s)
     """
 
-    cursor.execute(query, (
-        sensor_id,
-        moisture_level,
-        date,
-        time
-    ))
-
+    cursor.execute(query, (sensor_id, moisture_level, date, time))
     conn.commit()
     conn.close()
 
 
-# API to receive moisture data
-@app.route('/moisture/<sensor_id>/<int:moisture>', methods=['POST'])
-def receive_moisture(sensor_id, moisture_level,date,time):
+@app.route('/moisture/<int:sensor_id>/<int:moisture>/<int:date>/<string:time>', methods=['POST'])
+def receive_moisture(sensor_id, moisture, date, time):
 
-    insert_data(sensor_id, moisture_level,date,time)
+
+    insert_data(sensor_id, moisture, date, time)
 
     # Threshold check
-    if moisture_level < THRESHOLD:
-        alert = f"ALERT! Moisture LOW: {moisture_level} (Sensor {sensor_id})"
+    if moisture < THRESHOLD:
+        alert = f"ALERT! Moisture LOW: {moisture} (Sensor {sensor_id})"
         publish.single(MQTT_TOPIC, alert, hostname=MQTT_BROKER)
         return alert
 
-    return f"Moisture stored successfully: {moisture_level}"
+    return f"Moisture stored successfully: {moisture}"
 
 
 if __name__ == '__main__':
